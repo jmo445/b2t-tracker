@@ -1474,7 +1474,7 @@ function closeModal() {
 // ── Load live data (via Claude API in this app) ───────────────
 async function loadLiveData() {
   const apiKey = getApiKey();
-  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+  if (!apiKey || apiKey === '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') {
     promptApiKey();
     return;
   }
@@ -1915,7 +1915,11 @@ function updatePlayContracts() {
 // ── Init ──────────────────────────────────────────────────────
 updateRisk();
 renderPatterns();
-loadLiveData();
+// Load sample data immediately, then try live
+playsData = getSamplePlays();
+renderPlays(playsData);
+document.getElementById("lastUpdated").textContent = "Tap Refresh Live to load plays";
+setTimeout(loadLiveData, 500);
 </script>
 </body>
 </html>
