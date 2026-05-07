@@ -1439,7 +1439,7 @@ function renderPlays(plays) {
 
 // ── API Key management ───────────────────────────────────────
 function getApiKey() {
-  return localStorage.getItem('b2t_api_key') || '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';
+  return localStorage.getItem('b2t_api_key') || 'YOUR_API_KEY_HERE';
 }
 
 function saveApiKey(key) {
@@ -1474,7 +1474,7 @@ function closeModal() {
 // ── Load live data (via Claude API in this app) ───────────────
 async function loadLiveData() {
   const apiKey = getApiKey();
-  if (!apiKey || apiKey === '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') {
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
     promptApiKey();
     return;
   }
@@ -1915,7 +1915,7 @@ function updatePlayContracts() {
 // ── Init ──────────────────────────────────────────────────────
 updateRisk();
 renderPatterns();
-loadLiveData();
-</script>
-</body>
-</html>
+playsData = getSamplePlays();
+renderPlays(playsData);
+document.getElementById("statBias").textContent = "NEUTRAL";
+document.getEleme
