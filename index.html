@@ -1915,11 +1915,7 @@ function updatePlayContracts() {
 // ── Init ──────────────────────────────────────────────────────
 updateRisk();
 renderPatterns();
-// Load sample data immediately, then try live
-playsData = getSamplePlays();
-renderPlays(playsData);
-document.getElementById("lastUpdated").textContent = "Tap Refresh Live to load plays";
-setTimeout(loadLiveData, 500);
+loadLiveData();
 </script>
 </body>
 </html>
