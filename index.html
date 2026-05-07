@@ -839,6 +839,7 @@
       <div class="status-pill"><div class="status-dot"></div> <span id="marketStatus">Checking...</span></div>
       <div class="session-badge" id="sessionBadge">NYSE 9:30–11:30 AM</div>
       <div id="clock">--:-- --</div>
+      <button onclick="promptApiKey()" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:6px 14px;font-size:11px;cursor:pointer;font-family:DM Sans,sans-serif">🔑 API Key</button>
     </div>
   </header>
 
@@ -853,6 +854,24 @@
 
   <!-- ══ PANEL: DAILY PLAYS ══ -->
   <div id="panel-plays" class="panel active">
+    <!-- API KEY MODAL -->
+    <div id="apiModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#111827;border:1px solid #1E2D45;border-radius:16px;padding:32px;max-width:460px;width:100%">
+        <div style="font-family:Space Mono,monospace;font-size:16px;color:#F0B429;font-weight:700;margin-bottom:8px">⚡ B.2.T v.3 — API Setup</div>
+        <div style="font-size:13px;color:#6B7280;margin-bottom:20px;line-height:1.6">Enter your Anthropic API key to load live AI-analyzed plays. Your key is saved locally on this device only — never sent anywhere except Anthropic.</div>
+        <div style="font-size:11px;color:#6B7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Anthropic API Key</div>
+        <input id="apiKeyInput" type="password"
+          placeholder="sk-ant-api03-..."
+          style="width:100%;background:#070B12;border:1px solid #1E2D45;border-radius:8px;color:#F9FAFB;font-family:Space Mono,monospace;font-size:13px;padding:12px 14px;outline:none;margin-bottom:16px"
+          onkeydown="if(event.key==='Enter')saveKeyAndClose()">
+        <div style="display:flex;gap:10px">
+          <button onclick="saveKeyAndClose()" style="flex:1;background:linear-gradient(135deg,#F0B429,#F59E0B);border:none;border-radius:8px;color:#000;font-weight:700;font-size:14px;padding:12px;cursor:pointer">Save & Load Plays</button>
+          <button onclick="closeModal()" style="background:#1E2D45;border:1px solid #2A3550;border-radius:8px;color:#6B7280;font-size:13px;padding:12px 16px;cursor:pointer">Use Sample Data</button>
+        </div>
+        <div style="margin-top:14px;font-size:11px;color:#374151;text-align:center">Get your key at console.anthropic.com → API Keys</div>
+      </div>
+    </div>
+
     <!-- RISK CALCULATOR BAR -->
     <div class="risk-bar">
       <div class="risk-bar-title">⚙ Risk Settings</div>
@@ -924,6 +943,7 @@
       <div class="section-title">Today's Setups</div>
       <div style="display:flex;gap:8px">
         <button class="refresh-btn" onclick="loadLiveData()">⟳ Refresh Live</button>
+        <span id="lastUpdated" style="font-size:11px;color:var(--muted);align-self:center"></span>
         <label class="upload-btn" style="cursor:pointer">
           📂 Load Excel <input type="file" id="xlsxInput" accept=".xlsx" style="display:none" onchange="loadExcel(this)">
         </label>
@@ -1417,8 +1437,48 @@ function renderPlays(plays) {
   }).join('');
 }
 
+// ── API Key management ───────────────────────────────────────
+function getApiKey() {
+  return localStorage.getItem('b2t_api_key') || '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';
+}
+
+function saveApiKey(key) {
+  localStorage.setItem('b2t_api_key', key);
+}
+
+function promptApiKey() {
+  const existing = getApiKey();
+  const modal = document.getElementById('apiModal');
+  const input = document.getElementById('apiKeyInput');
+  if (existing) input.value = existing;
+  modal.style.display = 'flex';
+}
+
+function saveKeyAndClose() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    alert('Please enter a valid Anthropic API key starting with sk-ant-');
+    return;
+  }
+  saveApiKey(key);
+  document.getElementById('apiModal').style.display = 'none';
+  loadLiveData();
+}
+
+function closeModal() {
+  document.getElementById('apiModal').style.display = 'none';
+  playsData = getSamplePlays();
+  renderPlays(playsData);
+}
+
 // ── Load live data (via Claude API in this app) ───────────────
 async function loadLiveData() {
+  const apiKey = getApiKey();
+  if (!apiKey || apiKey === 'YOUR_API_KEY_HERE') {
+    promptApiKey();
+    return;
+  }
+
   const btn = document.querySelector('.refresh-btn');
   btn.textContent = '⟳ Loading...';
   btn.disabled = true;
@@ -1426,32 +1486,46 @@ async function loadLiveData() {
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 1000,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1500,
         messages: [{
           role: "user",
-          content: `You are an SMC options trader using TJR methodology.
-Today is ${new Date().toDateString()}.
-Tickers: SPY, QQQ, AAPL, TSLA, NVDA
-Generate 5 realistic-looking sample option setups for these tickers as if it were a real trading day.
-Use current approximate price levels (SPY~720, QQQ~665, AAPL~270, TSLA~380, NVDA~215).
-Return ONLY valid JSON array, no other text:
-[{"ticker":"SPY","type":"CALL","strike":720,"expiry":"2026-05-09","entry":1.85,"rec_exit":2.78,"spot":718.50,"stop":0.92,"tp1":2.78,"tp2":3.70,"tp3":4.62,"trigger":"Liq Sweep+BOS","confidence":78,"dte":3,"bias":"BULLISH","thesis":"Price swept previous low at 715, BOS confirmed on 1min. Entry on retest of liq sweep level.","key_levels":"Prev H: 721.50 | Prev L: 714.80 | EQ: 718.15"}]`
+          content: "You are an SMC options trader using TJR methodology. Today is " + new Date().toDateString() + ". Tickers: SPY, QQQ, AAPL, TSLA, NVDA. Generate 5 realistic option setups using current approximate prices (SPY~715, QQQ~660, AAPL~270, TSLA~375, NVDA~210). Return ONLY a valid JSON array, no other text, no markdown: [{"ticker":"SPY","type":"CALL","strike":715,"expiry":"" + new Date(Date.now()+7*86400000).toISOString().split('T')[0] + "","entry":1.85,"rec_exit":2.78,"spot":713.5,"stop":0.92,"tp1":2.78,"tp2":3.70,"tp3":4.62,"trigger":"Liq Sweep+BOS","confidence":75,"dte":7,"bias":"NEUTRAL","thesis":"Swept equal lows at 710, BOS confirmed. Watch for continuation.","key_levels":"H:718|L:710|EQ:714"}]"
         }]
       })
     });
+
+    if (!response.ok) {
+      const err = await response.json();
+      if (response.status === 401) {
+        localStorage.removeItem('b2t_api_key');
+        alert('API key invalid or expired. Please re-enter your key.');
+        promptApiKey();
+        return;
+      }
+      throw new Error(err.error?.message || 'API error');
+    }
+
     const data = await response.json();
     let raw = data.content[0].text.trim();
     if (raw.startsWith('```')) raw = raw.split('```')[1].replace(/^json/,'').trim();
     const plays = JSON.parse(raw);
     playsData = plays;
     renderPlays(plays);
+    document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
   } catch(e) {
-    // Fallback sample data
+    console.warn('API error, using sample data:', e.message);
     playsData = getSamplePlays();
     renderPlays(playsData);
+    document.getElementById('lastUpdated').textContent = 'Sample data (API error)';
   }
 
   btn.textContent = '⟳ Refresh Live';
